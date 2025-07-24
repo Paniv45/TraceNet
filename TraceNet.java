@@ -102,6 +102,7 @@ public class TraceNet {
 
         // Save report
         try (PrintWriter out = new PrintWriter("trace_report.txt")) {
+            out.println("Trace Report for: " + target + "\n");
             for (Hop h : hops) {
                 out.println(h);
             }
