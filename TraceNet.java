@@ -39,30 +39,38 @@ public class TraceNet {
         String line;
 
         Pattern latencyPattern = Pattern.compile("(\\d+(\\.\\d+)?)\\s*ms");
-        Pattern ipPattern = Pattern.compile("\\[(\\d+\\.\\d+\\.\\d+\\.\\d+)\\]|(\\d+\\.\\d+\\.\\d+\\.\\d+)");
+        Pattern ipPattern = Pattern.compile("\\b(\\d{1,3}(\\.\\d{1,3}){3})\\b");  // IPv4
+        Pattern ipv6Pattern = Pattern.compile("([a-fA-F0-9:]+:+)+[a-fA-F0-9]+");   // IPv6
 
         ArrayList<Hop> hops = new ArrayList<>();
         Hop bottleneck = new Hop(0, "", 0, "N/A");
 
         while ((line = reader.readLine()) != null) {
-            if (line.contains("Request timed out."))
-                continue;
+            // Optional Debug Line
+            System.out.println("[DEBUG] " + line);
+
+            if (line.contains("Request timed out.") || line.contains("* * *")) {
+                continue; // or mark as unreachable hop
+            }
+
             String[] tokens = line.trim().split("\\s+");
             if (tokens.length > 1) {
                 try {
                     int hopNumber = Integer.parseInt(tokens[0]);
 
                     // Extract IP
-                    String ip = "unknown";
+                    String ip = "No response";
                     int start = line.indexOf('[');
                     int end = line.indexOf(']');
                     if (start != -1 && end != -1 && end > start) {
                         ip = line.substring(start + 1, end);
                     } else {
-                        // Try finding plain IP if no brackets
                         Matcher ipMatch = ipPattern.matcher(line);
+                        Matcher ipv6Match = ipv6Pattern.matcher(line);
                         if (ipMatch.find()) {
                             ip = ipMatch.group();
+                        } else if (ipv6Match.find()) {
+                            ip = ipv6Match.group();
                         }
                     }
 
@@ -70,8 +78,8 @@ public class TraceNet {
                     Matcher timeMatch = latencyPattern.matcher(line);
                     double latency = timeMatch.find() ? Double.parseDouble(timeMatch.group(1)) : 0;
 
-                    // Get location only if valid IP
-                    String location = (!ip.equals("unknown")) ? getIPLocation(ip) : "N/A";
+                    // Get location only if valid IP (skip "No response")
+                    String location = (!ip.equals("No response")) ? getIPLocation(ip) : "N/A";
 
                     Hop h = new Hop(hopNumber, ip, latency, location);
                     hops.add(h);
